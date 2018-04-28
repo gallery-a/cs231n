@@ -154,7 +154,7 @@ def batchnorm_forward(x, gamma, beta, bn_param):
     - cache: A tuple of values needed in the backward pass
     """
     mode = bn_param['mode']
-    eps = bn_param.get('eps', 1e-5)#get 是什么来着
+    eps = bn_param.get('eps', 1e-5)#get 是什么来着#赋值
     momentum = bn_param.get('momentum', 0.9)
 
     N, D = x.shape
@@ -244,8 +244,8 @@ def batchnorm_backward(dout, cache):
     N = x.shape[0]
     dx_hat=dout*gamma
     dsample_var=np.sum(dx_hat(x-sample_mean)*(-0.5)*(sample_var+eps)**(-1.5),axis=0)#注意是所有的和，做后面的题发现自己忘了。
-    dsample_mean=np.sum(dx_hat,axis=0)*(-1)/np.sqrt(sample_var+eps)+dsample_var*np.sum(x-sample_mean,axis=0)*(-2/m)
-    dx=dx_hat/np.sqrt(sample_var+eps)+dsample_var*(2/m)*(x-sample_mean)+dsample_mean/m
+    dsample_mean=np.sum(dx_hat,axis=0)*(-1.0)/np.sqrt(sample_var+eps)+dsample_var*np.sum(x-sample_mean,axis=0)*(-2.0/m)
+    dx=dx_hat/np.sqrt(sample_var+eps)+dsample_var*(2.0/m)*(x-sample_mean)+dsample_mean/m
     dgamma=np.sum(dout*x_hat,axis=0)
     dbeta=np.sum(dout,axis=0)
 
@@ -564,20 +564,22 @@ def max_pool_backward_naive(dout, cache):
     ###########################################################################
     x,pool_param=cache
     pool_height=pool_param['pool_height']
-    pool_width=pool_para,['pool_width']
-    stride=pool_para,['stride']
+    pool_width=pool_param['pool_width']
+    stride=pool_param['stride']
     N,C,H,W=x.shape
     H_=int(1 + (H - pool_height) / stride)
     W_=int(1 + (W - pool_width) / stride)
-    dx=np.zero_like(x)
+    dx=np.zeros_like(x)
     #一开始不太知道pool的反向传播方式
     for hi in range(H_):
         for wi in range(W_):
             x_mask=x[:,:,hi*stride:hi*stride+pool_height,wi*stride:wi*stride+pool_width]
-            x_max=(x==np.max(x_mask,axis=(2,3)[:,:,None,None])
-            dx[:,:,hi*stride:hi*stride+pool_height,wi*stride:wi*stride+pool_width]+=x_max*(dout[:,:,hi,wi])[:,:,None,None]
+            #x_max=(x==np.max(x_mask,axis=(2,3)[:,:,None,None])
+            x_max=(x_mask==np.max(x_mask,axis=(2,3)[:,:,None,None]))#少了一个括弧
+            dx[:,:,hi*stride:hi*stride+pool_height,wi*stride:wi*stride+pool_width] += x_max*(dout[:,:,hi,wi])[:,:,None,None]
                    #不要忘记后面的broadcast
                    #！！！！千万不要忘了+=，自己写的时候就忘记了。
+                   
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################
@@ -613,9 +615,19 @@ def spatial_batchnorm_forward(x, gamma, beta, bn_param):
     #                                                                         #
     # HINT: You can implement spatial batch normalization using the vanilla   #
     # version of batch normalization defined above. Your implementation should#
-    # be very short; ours is less than five lines.                            #
+    # be  very short; ours is less than five lines.                            #
     ###########################################################################
-    
+    #13:50 Apr 28,2018
+    N, C, H, W = x.shape
+    mode = bn_param['mode'] 
+    eps = bn_param['eps']
+    momentum = bn_param['momentum'] 
+    running_mean = bn_param['running_mean']
+    running_var = bn_param['running_var'] 
+    out = np.zeros_like(x)
+    tmp_out,cache = batchnorm_forward(x.transpose(0,3,2,1).reshape(-1,C), gamma, beta, bn_param)
+    #out = tmp_out.reshape(x.shape) 忘了输出也要变了
+    out = temp_out.reshape(N,W,H,C).transpose(0,3,2,1)
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################
@@ -637,15 +649,18 @@ def spatial_batchnorm_backward(dout, cache):
     - dbeta: Gradient with respect to shift parameter, of shape (C,)
     """
     dx, dgamma, dbeta = None, None, None
-
+    
     ###########################################################################
     # TODO: Implement the backward pass for spatial batch normalization.      #
     #                                                                         #
     # HINT: You can implement spatial batch normalization using the vanilla   #
     # version of batch normalization defined above. Your implementation should#
     # be very short; ours is less than five lines.                            #
-    ###########################################################################
-    pass
+    ###########################################################################     
+    N, C, H, W = x.shape
+    dx_tmp,dgamma,dbeta=batchnorm_backward_alt(dout.transpose(0,2,3,1).reshape((-1,C)),cache)
+    dx = dx_tmp.reshape(N,W,H,C).transpose(0,3,2,1)
+    
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################
@@ -694,7 +709,7 @@ def softmax_loss(x, y):
     - loss: Scalar giving the loss
     - dx: Gradient of the loss with respect to x
     """
-    shifted_logits = x - np.max(x, axis=1, keepdims=True)
+    shifted_logits = x - np.max(x, axis=1, keepdims=True) #max in class
     Z = np.sum(np.exp(shifted_logits), axis=1, keepdims=True)
     log_probs = shifted_logits - np.log(Z)
     probs = np.exp(log_probs)
